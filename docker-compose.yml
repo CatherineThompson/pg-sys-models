@@ -1,0 +1,25 @@
+# Integration test target (spec §15, §18). Brings up PostgreSQL 16 with
+# pg_buffercache, a small shared_buffers (to force dirty eviction under load),
+# WAL I/O timing on (so wal_sync_time is populated), and a read-only monitoring
+# role granted pg_monitor.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: appdb
+    command:
+      - postgres
+      - -c
+      - shared_buffers=16MB        # tiny on purpose: provokes backend eviction
+      - -c
+      - track_wal_io_timing=on
+      - -c
+      - track_io_timing=on
+      - -c
+      - checkpoint_timeout=30s
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
