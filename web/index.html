@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PostgreSQL WAL &amp; Shared-Buffer Visualizer</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="topbar">
+  <h1>WAL &amp; Shared-Buffer Visualizer</h1>
+  <div class="modes" role="tablist" aria-label="Operating mode">
+    <button id="mode-teaching" class="mode-btn active" role="tab" aria-selected="true">Teaching</button>
+    <button id="mode-live" class="mode-btn" role="tab" aria-selected="false">Live</button>
+  </div>
+  <button id="theme-toggle" class="theme-btn" aria-label="Toggle dark mode">◐</button>
+</header>
+
+<main class="layout">
+  <!-- ======================= DIAGRAM ======================= -->
+  <section class="diagram" aria-label="Subsystem schematic">
+    <svg id="schematic" viewBox="0 0 820 620" role="img"
+         aria-labelledby="schematic-title schematic-desc">
+      <title id="schematic-title">Backends, shared buffers, WAL and disk</title>
+      <desc id="schematic-desc">Edge motion shows throughput; node color shows contention.</desc>
+
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+                markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="arrowhead" />
+        </marker>
+      </defs>
+
+      <!-- edges (drawn under the component boxes) -->
+      <g class="edges" fill="none">
+        <path id="eD"  class="edge" marker-end="url(#arrow)" d="M380,94 L380,240" />
+        <path id="eC1" class="edge" marker-end="url(#arrow)" d="M510,70 C600,90 650,180 678,250" />
+        <path id="eC2" class="edge" marker-end="url(#arrow)" d="M700,346 L678,500" />
+        <path id="eA"  class="edge" marker-end="url(#arrow)" d="M250,500 L350,392" />
+        <path id="eB"  class="edge" marker-end="url(#arrow)" d="M362,392 L212,500" />
+      </g>
+
+      <!-- reduced-motion numeric throughput labels (hidden unless reduced motion) -->
+      <g class="edge-rate-labels" aria-hidden="true">
+        <text id="rate-eD"  x="388" y="170"></text>
+        <text id="rate-eC1" x="600" y="150"></text>
+        <text id="rate-eC2" x="706" y="430"></text>
+        <text id="rate-eA"  x="270" y="450"></text>
+        <text id="rate-eB"  x="180" y="470"></text>
+      </g>
+
+      <!-- components -->
+      <g class="components">
+        <g class="component">
+          <rect x="310" y="30" width="200" height="64" rx="8" />
+          <text class="comp-label" x="410" y="67">Backends</text>
+        </g>
+
+        <g class="component">
+          <rect x="290" y="240" width="240" height="150" rx="8" />
+          <text class="comp-label" x="410" y="262">Shared buffers</text>
+          <g id="grid"></g>
+        </g>
+
+        <g class="component">
+          <rect x="620" y="250" width="150" height="96" rx="8" />
+          <text class="comp-label" x="695" y="302">WAL buffers</text>
+          <text class="comp-sub" x="695" y="322">(in-memory ring)</text>
+        </g>
+
+        <g class="component">
+          <rect x="70" y="500" width="210" height="86" rx="8" />
+          <text class="comp-label" x="175" y="540">Data files</text>
+          <text class="comp-sub" x="175" y="560">heap + indexes</text>
+        </g>
+
+        <g class="component">
+          <rect x="560" y="500" width="210" height="86" rx="8" />
+          <text class="comp-label" x="665" y="540">WAL segments</text>
+          <text class="comp-sub" x="665" y="560">sequential on disk</text>
+        </g>
+      </g>
+
+      <!-- contention nodes (color = contention) -->
+      <g class="nodes">
+        <g class="cnode" id="node-BM" transform="translate(312,452)">
+          <circle class="cnode-ring" r="17" />
+          <circle class="cnode-fill" r="13" />
+          <text class="cnode-label" y="4">BM</text>
+        </g>
+        <g class="cnode" id="node-EV" transform="translate(250,452)">
+          <circle class="cnode-ring estimated" r="17" />
+          <circle class="cnode-fill" r="13" />
+          <text class="cnode-label" y="4">EV</text>
+        </g>
+        <g class="cnode" id="node-WI" transform="translate(648,178)">
+          <circle class="cnode-ring" r="17" />
+          <circle class="cnode-fill" r="13" />
+          <text class="cnode-label" y="4">WI</text>
+        </g>
+        <g class="cnode" id="node-WW" transform="translate(706,420)">
+          <circle class="cnode-ring" r="17" />
+          <circle class="cnode-fill" r="13" />
+          <text class="cnode-label" y="4">WW</text>
+        </g>
+      </g>
+    </svg>
+  </section>
+
+  <!-- ======================= SIDEBAR ======================= -->
+  <aside class="sidebar">
+    <section id="teaching-controls" class="panel">
+      <h2>Teaching controls</h2>
+      <label>Write load <output id="load-out">30</output>
+        <input id="load" type="range" min="1" max="100" value="30" />
+      </label>
+      <label>shared_buffers
+        <select id="buffers">
+          <option value="0.3">small</option>
+          <option value="0.65" selected>medium</option>
+          <option value="1.0">large</option>
+        </select>
+      </label>
+    </section>
+
+    <section id="live-status" class="panel hidden">
+      <h2>Live mode</h2>
+      <p id="live-conn" class="muted">Connecting to /stream…</p>
+    </section>
+
+    <section class="panel">
+      <h2>Readouts</h2>
+      <div class="cards">
+        <div class="card"><span class="card-k">WAL throughput</span><span id="r-wal" class="card-v">—</span></div>
+        <div class="card"><span class="card-k">Dirty buffers</span><span id="r-dirty" class="card-v">—</span></div>
+        <div class="card"><span class="card-k">Cache hit</span><span id="r-cache" class="card-v">—</span></div>
+        <div class="card"><span class="card-k">Bottleneck</span><span id="r-bottleneck" class="card-v">—</span></div>
+      </div>
+      <p id="sr-summary" class="sr-only" aria-live="polite"></p>
+    </section>
+
+    <section class="panel legend">
+      <h2>Legend</h2>
+      <p class="legend-key"><strong>Edge motion = throughput.</strong> Faster = higher rate. Fast can be healthy.</p>
+      <p class="legend-key"><strong>Node color = contention.</strong> It is independent of edge speed.</p>
+      <ul class="legend-colors">
+        <li><span class="swatch ok"></span> ok (&lt;0.34)</li>
+        <li><span class="swatch strained"></span> strained (&lt;0.67)</li>
+        <li><span class="swatch bottleneck"></span> bottleneck (≥0.67)</li>
+      </ul>
+      <ul class="legend-nodes">
+        <li><b>BM</b> BufferMapping</li>
+        <li><b>WI</b> WALInsert</li>
+        <li><b>WW</b> WALWrite · fsync</li>
+        <li><b>EV</b> backend eviction <em>(estimated)</em></li>
+      </ul>
+    </section>
+  </aside>
+</main>
+
+<script src="frame.js"></script>
+<script src="toymodel.js"></script>
+<script src="render.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
