@@ -10,12 +10,13 @@ frontend and one frame contract (`internal/frame` ≡ `web/frame.js`, spec §14)
 The two visual encodings are **independent** (spec §2.4): edge *motion* = throughput,
 node *color* = contention. A fast edge can sit beside a green node.
 
-Full design: [`pg-wal-buffer-visualizer-spec.md`](./pg-wal-buffer-visualizer-spec.md).
+Full design: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ## Layout
 
 ```
 cmd/poller        entrypoint: serves web/ + the live SSE stream
+cmd/uishoot        headless-Chrome visual check: screenshots + layout invariants
 internal/frame    frame schema (§14) — the wire contract
 internal/config   env-driven configuration
 internal/db       read-only queries (§6), capability probe, graceful degradation
@@ -68,6 +69,20 @@ Switch the page to **Live**. Drive write load (e.g. `pgbench`) against the small
 go test ./...        # delta guards, bucketing, EV composite, SE, EWMA, hysteresis, bottleneck
 go vet ./...
 ```
+
+### Frontend visual check
+
+The SVG diagram is hand-placed, so visual changes are verified by *rendering*,
+not by reading coordinates. `cmd/uishoot` drives headless Chrome over the real
+`web/` assets and both screenshots the page and asserts layout invariants:
+
+```sh
+go run ./cmd/uishoot          # PNGs → web/testdata/screens/ + PASS/FAIL report
+go run ./cmd/uishoot -check    # invariants only (CI-friendly; exits non-zero on fail)
+```
+
+Needs a Chrome/Chromium binary (auto-detected; override with `CHROME_PATH`). See
+[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) → *Frontend visual development*.
 
 ## Notes & decisions (spec §19)
 

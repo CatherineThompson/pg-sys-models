@@ -20,6 +20,7 @@
   <!-- ======================= DIAGRAM ======================= -->
   <section class="diagram" aria-label="Subsystem schematic">
     <svg id="schematic" viewBox="0 0 820 620" role="img"
+         preserveAspectRatio="xMidYMid meet"
          aria-labelledby="schematic-title schematic-desc">
       <title id="schematic-title">Backends, shared buffers, WAL and disk</title>
       <desc id="schematic-desc">Edge motion shows throughput; node color shows contention.</desc>
@@ -36,8 +37,10 @@
         <path id="eD"  class="edge" marker-end="url(#arrow)" d="M380,94 L380,240" />
         <path id="eC1" class="edge" marker-end="url(#arrow)" d="M510,70 C600,90 650,180 678,250" />
         <path id="eC2" class="edge" marker-end="url(#arrow)" d="M700,346 L678,500" />
-        <path id="eA"  class="edge" marker-end="url(#arrow)" d="M250,500 L350,392" />
-        <path id="eB"  class="edge" marker-end="url(#arrow)" d="M362,392 L212,500" />
+        <!-- two parallel lanes (not crossing): eA loads pages up from disk,
+             eB evicts/flushes down to disk. ~55px apart so BM/EV sit clear. -->
+        <path id="eA"  class="edge" marker-end="url(#arrow)" d="M200,500 L300,388" />
+        <path id="eB"  class="edge" marker-end="url(#arrow)" d="M355,388 L255,500" />
       </g>
 
       <!-- reduced-motion numeric throughput labels (hidden unless reduced motion) -->
@@ -45,8 +48,8 @@
         <text id="rate-eD"  x="388" y="170"></text>
         <text id="rate-eC1" x="600" y="150"></text>
         <text id="rate-eC2" x="706" y="430"></text>
-        <text id="rate-eA"  x="270" y="450"></text>
-        <text id="rate-eB"  x="180" y="470"></text>
+        <text id="rate-eA"  x="210" y="430"></text>
+        <text id="rate-eB"  x="345" y="460"></text>
       </g>
 
       <!-- components -->
@@ -83,12 +86,12 @@
 
       <!-- contention nodes (color = contention) -->
       <g class="nodes">
-        <g class="cnode" id="node-BM" transform="translate(312,452)">
+        <g class="cnode" id="node-BM" transform="translate(250,444)">
           <circle class="cnode-ring" r="17" />
           <circle class="cnode-fill" r="13" />
           <text class="cnode-label" y="4">BM</text>
         </g>
-        <g class="cnode" id="node-EV" transform="translate(250,452)">
+        <g class="cnode" id="node-EV" transform="translate(305,444)">
           <circle class="cnode-ring estimated" r="17" />
           <circle class="cnode-fill" r="13" />
           <text class="cnode-label" y="4">EV</text>

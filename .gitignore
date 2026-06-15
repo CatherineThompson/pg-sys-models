@@ -2,3 +2,6 @@
 /bin/
 *.out
 .DS_Store
+
+# uishoot visual-check output (regenerated on demand)
+/web/testdata/screens/
