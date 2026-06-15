@@ -379,6 +379,39 @@ Validation target: with `B = small` and `L` high, `EV` goes red while others lag
 demonstrates the eviction cross-coupling (§2.2). With `B = large`, `EV` stays low even at
 high load.
 
+### 13.5 Frontend visual development (close the perception loop)
+
+The schematic is a hand-placed SVG with absolute coordinates (`web/index.html`,
+plus the dirty-cell grid built in `web/render.js`). Editing those coordinates
+"blind" is how blocks drift, edges cross, and the page outgrows the viewport.
+**Verify visual changes by rendering, not by reading numbers.**
+
+`cmd/uishoot` is the feedback loop. It serves the real `web/` assets through
+`server.New` (the production path), drives headless Chrome (chromedp) across a
+matrix of viewports × themes in a deterministic state (animations frozen, a fixed
+teaching fixture, theme pinned), and does two things per state:
+
+1. **Screenshots** → `web/testdata/screens/<viewport>-<theme>.png` (gitignored;
+   read them back to *see* the result).
+2. **Layout invariants** (the cheap, build-checkable half), exiting non-zero on
+   failure:
+   - no vertical page scroll at desktop viewports (`scrollHeight ≤ innerHeight`);
+   - no two component boxes overlap, and no contention node sits inside a box;
+   - every dirty-cell grid rect stays within the Shared-buffers box.
+
+```sh
+go run ./cmd/uishoot          # screenshots + invariants
+go run ./cmd/uishoot -check    # invariants only
+```
+
+Loop: **edit → `go run ./cmd/uishoot` → read the PNGs + the report → iterate.**
+When adding a component, edge, or node, extend the invariants in `cmd/uishoot`
+so the new element is covered. The page must stay scroll-free on desktop; the
+SVG is capped with `max-height` and letterboxes via `preserveAspectRatio` rather
+than growing past the viewport, and the dense sidebar scrolls independently
+(`web/style.css`). Needs a Chrome/Chromium binary (auto-detected; `CHROME_PATH`
+overrides).
+
 ---
 
 ## 14. Frame schema (the contract between source and frontend)

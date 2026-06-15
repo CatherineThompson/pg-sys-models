@@ -116,7 +116,9 @@ function makeRenderer() {
 function buildGrid() {
   const g = document.getElementById("grid");
   if (!g || g.childElementCount) return;
-  const cols = 5, rows = 4, x0 = 305, y0 = 300, cw = 42, ch = 18, gap = 4;
+  // Centered inside the Shared-buffers box (x 290..530): 5*40 + 4*4 = 216 wide,
+  // 12px margin each side. Stays clear of the "Shared buffers" label at y=262.
+  const cols = 5, rows = 4, x0 = 302, y0 = 300, cw = 40, ch = 18, gap = 4;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");

@@ -55,6 +55,18 @@ body {
 .diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
 #schematic { width: 100%; height: auto; display: block; }
 
+/* On desktop, cap the SVG height so the page never scrolls. The SVG keeps its
+   aspect ratio (a max-height violation rescales width to match), so it shrinks
+   to fit and centers. Below the 880px breakpoint the layout stacks and may
+   scroll, so the cap is lifted and the SVG keeps its natural width-driven size. */
+@media (min-width: 881px) {
+  .diagram { display: flex; justify-content: center; }
+  #schematic { max-height: calc(100vh - 116px); }
+  /* The info-dense sidebar can exceed a short viewport; let it scroll on its
+     own so the page itself stays fixed-height. */
+  .sidebar { max-height: calc(100vh - 100px); overflow-y: auto; }
+}
+
 /* components */
 .component rect { fill: var(--comp-fill); stroke: var(--comp-stroke); stroke-width: 1.5; }
 .comp-label { fill: var(--ink); font-size: 14px; font-weight: 600; text-anchor: middle; }
